@@ -18,7 +18,7 @@
     iconColor: '#4CAF50',
     iconHoverColor: '#45a049',
     iconSize: '16px',
-    iconMargin: '5px',
+    iconMargin: '0px',  // 直接贴紧输入框
     iconPosition: 'inline', // 'inline' 或 'absolute'
     showFieldName: true // 是否在填充时显示字段名称
   };
@@ -1007,7 +1007,7 @@
             color: ${CONFIG.iconColor};
             font-size: ${CONFIG.iconSize};
             margin-left: ${CONFIG.iconMargin};
-            padding: 2px 5px;
+            margin-right: -10px;
             border-radius: 3px;
             background-color: rgba(76, 175, 80, 0.1);
             transition: all 0.3s ease;
@@ -1073,7 +1073,25 @@
       input.parentNode.style.position = 'relative';
       input.parentNode.appendChild(icon);
     } else {
+      // 将图标插入到输入框后面
       input.parentNode.insertBefore(icon, input.nextSibling);
+      
+      // 尝试移除元素间的空白文本节点
+      try {
+        const siblings = Array.from(input.parentNode.childNodes);
+        const inputIndex = siblings.indexOf(input);
+        if (inputIndex >= 0) {
+          // 查找输入框与⚡之间的文本节点
+          for (let i = inputIndex + 1; i < siblings.indexOf(icon); i++) {
+            const node = siblings[i];
+            if (node.nodeType === 3 && node.textContent.trim() === '') {
+              input.parentNode.removeChild(node);
+            }
+          }
+        }
+      } catch (e) {
+        // 忽略错误
+      }
     }
 
     // 若该字段已保存过选择类型，则让 icon 变蓝色提示
