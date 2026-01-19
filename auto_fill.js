@@ -4,7 +4,7 @@
 // @version      1.0
 // @description  在表单输入框后添加填充图标，支持中文、数字和字母的随机填充
 // @author       You
-// @match        *://*/*
+// @match        *.evchargeonline.com.cn/*
 // @grant        none
 // ==/UserScript==
 
