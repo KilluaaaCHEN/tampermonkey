@@ -983,12 +983,210 @@
   }
 
   // 创建填充图标
+  // ===== ElementPlus el-select 随机选择（行政区等下拉） =====
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function isElementVisible(el) {
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  function getElSelectWrapByInput(input) {
+    // input 在 ElementPlus 里通常被包在 .el-select 中，弹层挂在 body
+    return input?.closest?.('.el-select') || null;
+  }
+
+  function getElSelectTriggerByInput(input) {
+    const wrap = getElSelectWrapByInput(input);
+    if (!wrap) return null;
+    return wrap.querySelector('.el-select__wrapper') || wrap;
+  }
+
+  function findNewestVisibleDropdown() {
+    // ElementPlus: el-select-dropdown / el-popper / el-tooltip 组合很多版本差异
+    const candidates = Array.from(document.querySelectorAll('.el-select__popper, .el-popper, .el-select-dropdown'));
+    // 取最后一个“可见”的（最近打开的通常在后面）
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const el = candidates[i];
+      if (isElementVisible(el) && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0) return el;
+    }
+    return null;
+  }
+
+  function getSelectableOptionEls(dropdown) {
+    if (!dropdown) return [];
+    // 兼容 ElementPlus：.el-select-dropdown__item / li[role=option] / .el-vl__window 下的 item
+    const options = Array.from(dropdown.querySelectorAll('.el-select-dropdown__item, li[role="option"], .el-select-dropdown__item span'));
+    // 如果命中的是 span，则回到 item
+    const normalized = options.map(el => el.closest?.('.el-select-dropdown__item') || el.closest?.('li[role="option"]') || el).filter(Boolean);
+
+    // 去重
+    const uniq = [];
+    const seen = new Set();
+    normalized.forEach(el => {
+      if (seen.has(el)) return;
+      seen.add(el);
+      uniq.push(el);
+    });
+
+    // 过滤禁用/不可选/空
+    return uniq.filter(el => {
+      if (!isElementVisible(el)) return false;
+      const cls = (el.className || '').toString();
+      if (cls.includes('is-disabled') || cls.includes('disabled')) return false;
+      const ariaDisabled = el.getAttribute?.('aria-disabled');
+      if (ariaDisabled === 'true') return false;
+      const text = (el.innerText || el.textContent || '').trim();
+      if (!text) return false;
+      return true;
+    });
+  }
+
+  async function waitForOptionsLoaded({ timeoutMs = 6000, stepMs = 120 } = {}) {
+    const start = Date.now();
+    let lastCount = -1;
+    let stableTicks = 0;
+
+    while (Date.now() - start < timeoutMs) {
+      const dropdown = findNewestVisibleDropdown();
+      const opts = getSelectableOptionEls(dropdown);
+
+      // 处理“懒加载/滚动加载”：当数量稳定 2 个 tick 就认为已加载完成
+      if (opts.length === lastCount) stableTicks++;
+      else stableTicks = 0;
+
+      lastCount = opts.length;
+
+      if (opts.length > 0 && stableTicks >= 2) return { dropdown, options: opts };
+
+      // 尝试触发一次滚动加载（很多 el-select 用虚拟列表）
+      if (dropdown) {
+        const scroller =
+          dropdown.querySelector('.el-scrollbar__wrap') ||
+          dropdown.querySelector('.el-select-dropdown__wrap') ||
+          dropdown.querySelector('[class*="scrollbar"]') ||
+          dropdown;
+        try { scroller.scrollTop = scroller.scrollHeight; } catch (e) {}
+      }
+
+      await sleep(stepMs);
+    }
+
+    // 超时也返回当前结果，给上层兜底
+    const dropdown = findNewestVisibleDropdown();
+    return { dropdown, options: getSelectableOptionEls(dropdown) };
+  }
+
+  async function randomPickFromElSelectInput(input) {
+    const trigger = getElSelectTriggerByInput(input);
+    if (!trigger) return false;
+
+    // 1) 打开下拉
+    trigger.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await sleep(50);
+
+    // 2) 等待选项渲染/懒加载完成
+    const { dropdown, options } = await waitForOptionsLoaded({ timeoutMs: 8000 });
+
+    if (!options || options.length === 0) {
+      // 关闭（尽量不干扰）
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return false;
+    }
+
+    // 3) 随机选择
+    const idx = Math.floor(Math.random() * options.length);
+    const opt = options[idx];
+
+    opt.scrollIntoView?.({ block: 'nearest' });
+    opt.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    return true;
+  }
+
+  function isElementPlusSelectInput(input) {
+    // 你的示例是：input.el-select__input (readonly) + 外层 .el-select
+    if (!input) return false;
+    if (input.tagName?.toLowerCase() !== 'input') return false;
+    const cls = (input.className || '').toString();
+    if (cls.includes('el-select__input')) return true;
+    // 有些版本 input class 不同，但在 .el-select 里且 readonly/role=combobox
+    const inSelect = !!input.closest?.('.el-select');
+    const role = input.getAttribute?.('role');
+    if (inSelect && role === 'combobox') return true;
+    return false;
+  }
+
+  // 拦截用户“直接点击下拉”行为：页面刷新后也生效
+  function bindElSelectAutoRandomPick() {
+    if (window.__AUTO_FILL_EL_SELECT_BOUND__) return;
+    window.__AUTO_FILL_EL_SELECT_BOUND__ = true;
+
+    // capture 阶段拦截，尽量早于组件自身处理
+    document.addEventListener('click', async (e) => {
+      const target = e.target;
+      const input = target?.closest?.('input') || (target?.tagName?.toLowerCase() === 'input' ? target : null);
+      if (!input) return;
+      if (!isElementPlusSelectInput(input)) return;
+
+      // 只对“尚未有值”的下拉做自动随机，避免覆盖用户已选内容
+      const wrap = getElSelectWrapByInput(input);
+      const hasValue = !!wrap?.querySelector?.('.el-select__selected-item:not(.el-select__placeholder)') ||
+        !!wrap?.querySelector?.('.el-select__selection .el-select__selected-item:not(.el-select__placeholder):not(.is-transparent)');
+      if (hasValue) return;
+
+      // 防止组件默认 click 再次触发造成状态抖动
+      e.preventDefault();
+      e.stopPropagation();
+
+      const ok = await randomPickFromElSelectInput(input);
+      if (ok) showToast('已随机选择一项', { duration: 900 });
+    }, true);
+  }
+
+  function getElSelectIconMountNodeByInput(input) {
+    // ElementPlus: input 常常是隐藏的，插在 input 后面会“看不见”
+    // 这里优先把⚡挂到 .el-select__wrapper/.el-input__wrapper 上（可见区域）
+    const wrap = getElSelectWrapByInput(input);
+    if (!wrap) return null;
+
+    return wrap.querySelector('.el-select__wrapper')
+      || wrap.querySelector('.el-input__wrapper')
+      || wrap;
+  }
+
+  function hasExistingAutoFillIconNear(input) {
+    // 1) 原逻辑：input 后紧邻
+    if (input.nextElementSibling && input.nextElementSibling.classList?.contains('auto-fill-icon')) return true;
+
+    // 2) el-select：wrapper 内已存在（避免重复插入）
+    const mount = getElSelectIconMountNodeByInput(input);
+    if (mount && mount.querySelector?.(':scope > .auto-fill-icon, .auto-fill-icon')) return true;
+
+    return false;
+  }
+
+  function shouldCreateIconForInput(input) {
+    // 对于 el-select：readonly 是正常情况，必须允许插入⚡
+    if (isElementPlusSelectInput(input)) {
+      return !input.disabled;
+    }
+    // 普通输入：沿用原规则（readonly/disabled 不加⚡）
+    return isFillableInput(input);
+  }
+
   function createFillIcon(input) {
-    // disabled/readonly：不加⚡
-    if (!isFillableInput(input)) return;
+    // 普通 input：disabled/readonly 不加⚡；但 el-select 的 readonly 是正常的，需要允许
+    if (!shouldCreateIconForInput(input)) return;
 
     // 如果已经有图标了，就不重复创建
-    if (input.nextElementSibling && input.nextElementSibling.classList.contains('auto-fill-icon')) {
+    if (hasExistingAutoFillIconNear(input)) {
       return;
     }
 
@@ -1030,6 +1228,9 @@
     let hoverTimer = null;
 
     icon.addEventListener('mouseenter', function() {
+      // el-select 下拉：不显示“类型选择菜单”，只保留点击随机选择
+      if (isElementPlusSelectInput(input)) return;
+
       hoverTimer = setTimeout(() => {
         showMenu(icon, input);
       }, 150);
@@ -1038,6 +1239,9 @@
     icon.addEventListener('mouseleave', function() {
       if (hoverTimer) clearTimeout(hoverTimer);
       hoverTimer = null;
+
+      // el-select 下拉：不显示类型菜单
+      if (isElementPlusSelectInput(input)) return;
 
       // 给用户移动到菜单的时间；若鼠标不在菜单上，则关闭
       const menu = icon._autoFillMenu;
@@ -1050,9 +1254,17 @@
     });
 
     // 点击事件 - 默认填充（自动/记忆；支持刷新后从 localStorage 恢复）
-    icon.addEventListener('click', function(e) {
+    icon.addEventListener('click', async function(e) {
       e.preventDefault();
       e.stopPropagation();
+
+      // ElementPlus el-select：点击⚡时随机选择一项（行政区等）
+      if (isElementPlusSelectInput(input)) {
+        const ok = await randomPickFromElSelectInput(input);
+        if (ok) showToast('已随机选择一项', { duration: 900 });
+        else showToast('下拉暂无可选项', { duration: 900 });
+        return;
+      }
 
       let remembered = FIELD_TYPE_MEMORY.get(input);
       if (!remembered) {
@@ -1073,24 +1285,40 @@
       input.parentNode.style.position = 'relative';
       input.parentNode.appendChild(icon);
     } else {
-      // 将图标插入到输入框后面
-      input.parentNode.insertBefore(icon, input.nextSibling);
-      
-      // 尝试移除元素间的空白文本节点
-      try {
-        const siblings = Array.from(input.parentNode.childNodes);
-        const inputIndex = siblings.indexOf(input);
-        if (inputIndex >= 0) {
-          // 查找输入框与⚡之间的文本节点
-          for (let i = inputIndex + 1; i < siblings.indexOf(icon); i++) {
-            const node = siblings[i];
-            if (node.nodeType === 3 && node.textContent.trim() === '') {
-              input.parentNode.removeChild(node);
+      // ElementPlus el-select：优先插到可见 wrapper 内
+      if (isElementPlusSelectInput(input)) {
+        const mount = getElSelectIconMountNodeByInput(input);
+        if (mount) {
+          // 让⚡紧贴右侧，且不挡住原下拉箭头（箭头通常也是 suffix）
+          icon.style.marginLeft = '6px';
+          icon.style.marginRight = '0';
+          icon.style.flex = '0 0 auto';
+
+          // wrapper 通常是 flex，直接 append 在末尾即可
+          mount.appendChild(icon);
+        } else {
+          input.parentNode.insertBefore(icon, input.nextSibling);
+        }
+      } else {
+        // 普通 input：插在 input 后面
+        input.parentNode.insertBefore(icon, input.nextSibling);
+        
+        // 尝试移除元素间的空白文本节点
+        try {
+          const siblings = Array.from(input.parentNode.childNodes);
+          const inputIndex = siblings.indexOf(input);
+          if (inputIndex >= 0) {
+            // 查找输入框与⚡之间的文本节点
+            for (let i = inputIndex + 1; i < siblings.indexOf(icon); i++) {
+              const node = siblings[i];
+              if (node.nodeType === 3 && node.textContent.trim() === '') {
+                input.parentNode.removeChild(node);
+              }
             }
           }
+        } catch (e) {
+          // 忽略错误
         }
-      } catch (e) {
-        // 忽略错误
       }
     }
 
@@ -1217,11 +1445,11 @@
 
   // 为主页表单添加图标
   function addIconsToForm(form) {
+    // 这里不能用 isFormInput 过滤：el-select 的 input 是 readonly/特殊结构
+    // 统一直接交给 createFillIcon 做判断
     const inputs = form.querySelectorAll('input, textarea, select');
     inputs.forEach(input => {
-      if (isFormInput(input)) {
-        createFillIcon(input);
-      }
+      createFillIcon(input);
     });
   }
 
@@ -1239,9 +1467,7 @@
         `);
 
     standaloneInputs.forEach(input => {
-      if (isFormInput(input)) {
-        createFillIcon(input);
-      }
+      createFillIcon(input);
     });
   }
 
@@ -1257,7 +1483,8 @@
             // 检查新增节点中是否包含输入框
             const inputs = node.querySelectorAll ? node.querySelectorAll('input, textarea, select') : [];
             inputs.forEach(input => {
-              if (isFormInput(input) && !input.nextElementSibling?.classList.contains('auto-fill-icon')) {
+              // 交给 createFillIcon 判断；并用更宽松的“附近是否已有 icon”避免重复
+              if (!hasExistingAutoFillIconNear(input)) {
                 setTimeout(() => createFillIcon(input), 100);
               }
             });
@@ -1278,6 +1505,9 @@
 
     // 初始扫描
     scanAndAddIcons();
+
+    // ElementPlus el-select：直接点击下拉时自动随机选择（刷新后也生效）
+    bindElSelectAutoRandomPick();
 
     // 一键填充按钮（仅填充蓝色⚡字段）
     ensureOneClickFillButton();
@@ -1303,6 +1533,13 @@
             .auto-fill-icon.auto-fill-icon--remembered {
                 color: #1677ff !important;
                 background-color: rgba(22, 119, 255, 0.12) !important;
+            }
+
+            /* ElementPlus wrapper 常用 flex，避免⚡被压缩/换行 */
+            .el-select__wrapper .auto-fill-icon,
+            .el-input__wrapper .auto-fill-icon {
+                flex: 0 0 auto;
+                align-self: center;
             }
         `;
     document.head.appendChild(style);
