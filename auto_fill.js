@@ -668,6 +668,96 @@
     showToast(filled > 0 ? `已一键填充 ${filled} 项` : '没有可一键填充的字段', { duration: 1400 });
   }
 
+  const LIGHTNING_HIDDEN_KEY = 'autoFill.lightning.hidden';
+
+  function isLightningHidden() {
+    try {
+      return localStorage.getItem(LIGHTNING_HIDDEN_KEY) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setLightningHidden(hidden) {
+    try {
+      localStorage.setItem(LIGHTNING_HIDDEN_KEY, hidden ? '1' : '0');
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function applyLightningHiddenState() {
+    const hidden = isLightningHidden();
+    const display = hidden ? 'none' : '';
+
+    document.querySelectorAll('.auto-fill-icon').forEach((el) => {
+      el.style.display = display;
+    });
+
+    // 如果有打开的菜单，也一并隐藏
+    document.querySelectorAll('.auto-fill-type-menu').forEach((el) => {
+      el.style.display = hidden ? 'none' : el.style.display;
+    });
+
+    // 更新按钮文案
+    const toggleBtn = document.getElementById('auto-fill-toggle-lightning');
+    if (toggleBtn) {
+      toggleBtn.textContent = hidden ? '显示⚡' : '隐藏⚡';
+      toggleBtn.title = hidden ? '显示所有输入框后的⚡填充按钮' : '隐藏所有输入框后的⚡填充按钮';
+      toggleBtn.dataset.hidden = hidden ? '1' : '0';
+    }
+  }
+
+  function ensureToggleLightningButton() {
+    if (document.getElementById('auto-fill-toggle-lightning')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'auto-fill-toggle-lightning';
+    btn.type = 'button';
+    btn.textContent = '一键隐藏⚡';
+    btn.title = '隐藏所有输入框后的⚡填充按钮';
+    btn.style.cssText = `
+      position: fixed;
+      right: 16px;
+      top: 120px;
+      z-index: 999999;
+      background: linear-gradient(135deg, #ff7a45, #ffa940);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      box-shadow: 0 10px 26px rgba(255,122,69,0.28);
+      user-select: none;
+    `;
+
+    btn.addEventListener('mouseenter', () => {
+      btn.style.transform = 'translateY(-1px)';
+      btn.style.boxShadow = '0 12px 30px rgba(255,122,69,0.34)';
+    });
+    btn.addEventListener('mouseleave', () => {
+      btn.style.transform = 'none';
+      btn.style.boxShadow = '0 10px 26px rgba(255,122,69,0.28)';
+    });
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const nextHidden = !isLightningHidden();
+      setLightningHidden(nextHidden);
+      applyLightningHiddenState();
+      showToast(nextHidden ? '已隐藏⚡' : '已显示⚡', { duration: 900 });
+    });
+
+    document.body.appendChild(btn);
+
+    // 初始化一次状态
+    applyLightningHiddenState();
+  }
+
   function ensureOneClickFillButton() {
     if (document.getElementById('auto-fill-one-click')) return;
 
@@ -974,6 +1064,11 @@
 
     // 若该字段已保存过选择类型，则让 icon 变蓝色提示
     updateIconRememberedState(input);
+
+    // 若当前处于“隐藏⚡”状态，则新创建的 icon 也应隐藏
+    if (isLightningHidden()) {
+      icon.style.display = 'none';
+    }
   }
 
   // 固定位置通知（不做队列/不考虑重叠：新通知覆盖旧通知）
@@ -1154,6 +1249,9 @@
 
     // 一键填充按钮（仅填充蓝色⚡字段）
     ensureOneClickFillButton();
+
+    // 一键隐藏/显示 ⚡ 按钮
+    ensureToggleLightningButton();
 
     // 监听动态内容
     observeDynamicForms();
