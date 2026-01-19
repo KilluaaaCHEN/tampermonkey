@@ -576,6 +576,36 @@
     }
   }
 
+  function getInputMaxLength(input) {
+    // 兼容：maxlength 可能不存在 / 为 -1 / 或者是字符串
+    const raw = input?.getAttribute?.('maxlength');
+    if (raw == null) return Infinity;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return Infinity;
+    return n;
+  }
+
+  function clampToMaxLength(input, text) {
+    const max = getInputMaxLength(input);
+    const s = String(text ?? '');
+    if (!Number.isFinite(max) || max === Infinity) return s;
+
+    // maxlength 按“字符数”限制：这里用 Array.from 处理 surrogate pair（emoji 等）
+    const arr = Array.from(s);
+    return arr.length > max ? arr.slice(0, max).join('') : s;
+  }
+
+  function setInputValueLikeUser(input, value) {
+    // 不做逐字：只保证长度，并触发必要事件（兼容 Vue/React/ElementPlus 的 v-model/校验）
+    const v = clampToMaxLength(input, value);
+
+    try { input.focus(); } catch (e) {}
+    input.value = v;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return v;
+  }
+
   function fillInput(input, typeKey = 'auto') {
     const oldValue = input.value;
 
@@ -589,11 +619,10 @@
       content = generateFillContent(input);
     }
 
-    input.value = content;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    showFillNotification(input, oldValue, content);
-    input.focus();
+    // 永不超过 maxlength
+    const finalValue = setInputValueLikeUser(input, content);
+
+    showFillNotification(input, oldValue, finalValue);
   }
 
   function getRememberedTypeKey(input) {
@@ -819,9 +848,11 @@
 
     let top;
     if (spaceBelow >= menuRect.height + margin || spaceBelow >= spaceAbove) {
-      top = rect.bottom + 6;
+      // 向下展开：下移一点，避免遮挡⚡
+      top = rect.bottom + 10;
     } else {
-      top = rect.top - menuRect.height - 6;
+      // 向上展开：上移一点，避免贴得太近挡到⚡
+      top = rect.top - menuRect.height - 12;
     }
 
     // 左右边界处理
