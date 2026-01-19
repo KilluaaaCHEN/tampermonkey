@@ -318,7 +318,9 @@
       let remembered = FIELD_TYPE_MEMORY.get(input);
       if (!remembered) remembered = loadPersistedFieldType(input);
 
-      const active = remembered && remembered !== 'auto';
+      // el-select：默认认为“已记忆”（蓝色⚡），以便一键填充时包含下拉随机选择
+      const active = isElementPlusSelectInput(input) ? true : (remembered && remembered !== 'auto');
+
       if (active) {
         icon.classList.add('auto-fill-icon--remembered');
       } else {
@@ -644,28 +646,70 @@
   }
 
   function isRememberedField(input) {
+    // el-select：默认作为“蓝色⚡字段”，参与一键填充（随机选一项）
+    if (isElementPlusSelectInput(input)) return true;
+
     const remembered = getRememberedTypeKey(input);
     return !!(remembered && remembered !== 'auto');
   }
 
   let IS_BATCH_FILLING = false;
 
-  function fillAllRememberedFields() {
-    // 只填充“蓝色闪电”的字段：即有持久化类型选择的字段
+  function isMerchantSwitchElSelectInput(input) {
+    // 规则：页面第一个 el-select 是“切换商户”，禁止自动随机选择（避免触发页面刷新/切换上下文）
+    // 这里用“在页面中所有 el-select__input 的顺序”做判断：第 0 个视为商户切换下拉。
+    try {
+      if (!isElementPlusSelectInput(input)) return false;
+      const all = Array.from(document.querySelectorAll('input.el-select__input, input[role="combobox"]'));
+      const idx = all.indexOf(input);
+      return idx === 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function fillAllRememberedFields() {
+    // 只填充“蓝色闪电”的字段：
+    // - 普通 input：有持久化类型选择的字段
+    // - el-select：默认参与（随机选一项）
+    //
+    // 注意：某些页面在表单 change/校验 后会自动提交/触发刷新。
+    // 因此这里做“节流 + 逐项延迟”，降低连续触发事件导致的意外刷新概率。
     let filled = 0;
 
     IS_BATCH_FILLING = true;
     try {
       const inputs = document.querySelectorAll('input, textarea, select');
-      inputs.forEach((input) => {
-        if (!isFillableInput(input)) return;
+      for (const input of inputs) {
+        // 给页面一点喘息时间（避免短时间大量 change 事件）
+        await sleep(200);
+
+        // el-select：readonly 是正常的，这里只要不是 disabled 就允许
+        if (isElementPlusSelectInput(input)) {
+          if (input.disabled) continue;
+
+          // 禁用“切换商户”下拉：不参与一键填充
+          if (isMerchantSwitchElSelectInput(input)) continue;
+
+          // 若页面已经在卸载/刷新中，立刻停止
+          if (document.visibilityState === 'hidden') break;
+
+          const ok = await randomPickFromElSelectInput(input);
+          if (ok) filled++;
+
+          // 选择后再缓一缓，避免联动校验/请求触发跳转
+          await sleep(120);
+          continue;
+        }
+
+        if (!isFillableInput(input)) continue;
 
         const typeKey = getRememberedTypeKey(input);
-        if (!typeKey || typeKey === 'auto') return;
+        if (!typeKey || typeKey === 'auto') continue;
 
         fillInput(input, typeKey);
         filled++;
-      });
+      }
     } finally {
       IS_BATCH_FILLING = false;
     }
@@ -764,6 +808,8 @@
     applyLightningHiddenState();
   }
 
+  let ONE_CLICK_FILLING = false;
+
   function ensureOneClickFillButton() {
     if (document.getElementById('auto-fill-one-click')) return;
 
@@ -771,7 +817,7 @@
     btn.id = 'auto-fill-one-click';
     btn.type = 'button';
     btn.textContent = '一键填充';
-    btn.title = '仅填充已选择过类型（蓝色⚡）的字段';
+    btn.title = '仅填充已选择过类型（蓝色⚡）的字段（包含下拉随机选项）';
     btn.style.cssText = `
       position: fixed;
       right: 16px;
@@ -799,10 +845,27 @@
       btn.style.boxShadow = '0 10px 26px rgba(22,119,255,0.28)';
     });
 
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      fillAllRememberedFields();
+
+      // 防止连点导致事件堆叠（有些页面会因此触发提交/刷新）
+      if (ONE_CLICK_FILLING) return;
+      ONE_CLICK_FILLING = true;
+
+      const oldText = btn.textContent;
+      btn.textContent = '填充中...';
+      btn.style.opacity = '0.85';
+      btn.style.cursor = 'not-allowed';
+
+      try {
+        await fillAllRememberedFields();
+      } finally {
+        ONE_CLICK_FILLING = false;
+        btn.textContent = oldText;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+      }
     });
 
     document.body.appendChild(btn);
@@ -1135,6 +1198,9 @@
       if (!input) return;
       if (!isElementPlusSelectInput(input)) return;
 
+      // 禁用“切换商户”下拉：不做自动随机选择
+      if (isMerchantSwitchElSelectInput(input)) return;
+
       // 只对“尚未有值”的下拉做自动随机，避免覆盖用户已选内容
       const wrap = getElSelectWrapByInput(input);
       const hasValue = !!wrap?.querySelector?.('.el-select__selected-item:not(.el-select__placeholder)') ||
@@ -1260,6 +1326,12 @@
 
       // ElementPlus el-select：点击⚡时随机选择一项（行政区等）
       if (isElementPlusSelectInput(input)) {
+        // 禁用“切换商户”下拉
+        if (isMerchantSwitchElSelectInput(input)) {
+          showToast('切换商户下拉已禁用⚡', { duration: 900 });
+          return;
+        }
+
         const ok = await randomPickFromElSelectInput(input);
         if (ok) showToast('已随机选择一项', { duration: 900 });
         else showToast('下拉暂无可选项', { duration: 900 });
