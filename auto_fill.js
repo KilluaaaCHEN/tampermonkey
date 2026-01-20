@@ -656,8 +656,7 @@
   let IS_BATCH_FILLING = false;
 
   function isMerchantSwitchElSelectInput(input) {
-    // 规则：页面第一个 el-select 是“切换商户”，禁止自动随机选择（避免触发页面刷新/切换上下文）
-    // 这里用“在页面中所有 el-select__input 的顺序”做判断：第 0 个视为商户切换下拉。
+    // 规则：页面第一个 el-select 是“切换商户”，不显示⚡，也不参与自动随机选择
     try {
       if (!isElementPlusSelectInput(input)) return false;
       const all = Array.from(document.querySelectorAll('input.el-select__input, input[role="combobox"]'));
@@ -669,9 +668,7 @@
   }
 
   async function fillAllRememberedFields() {
-    // 只填充“蓝色闪电”的字段：
-    // - 普通 input：有持久化类型选择的字段
-    // - el-select：默认参与（随机选一项）
+    // 一键填充顺序要求：先填充 input/textarea，再处理 select（el-select 下拉随机选）
     //
     // 注意：某些页面在表单 change/校验 后会自动提交/触发刷新。
     // 因此这里做“节流 + 逐项延迟”，降低连续触发事件导致的意外刷新概率。
@@ -679,36 +676,47 @@
 
     IS_BATCH_FILLING = true;
     try {
-      const inputs = document.querySelectorAll('input, textarea, select');
-      for (const input of inputs) {
-        // 给页面一点喘息时间（避免短时间大量 change 事件）
-        await sleep(200);
+      const all = Array.from(document.querySelectorAll('input, textarea, select'));
 
-        // el-select：readonly 是正常的，这里只要不是 disabled 就允许
-        if (isElementPlusSelectInput(input)) {
-          if (input.disabled) continue;
+      const normalInputs = all.filter((el) => {
+        if (!(el instanceof HTMLElement)) return false;
+        // 排除 el-select 的 input（readonly/combobox），它属于“select 阶段”
+        if (isElementPlusSelectInput(el)) return false;
+        // 仅处理可填充输入框，且必须是“蓝色记忆字段”
+        if (!isFillableInput(el)) return false;
+        const typeKey = getRememberedTypeKey(el);
+        return !!(typeKey && typeKey !== 'auto');
+      });
 
-          // 禁用“切换商户”下拉：不参与一键填充
-          if (isMerchantSwitchElSelectInput(input)) continue;
+      const elSelectInputs = all.filter((el) => {
+        if (!(el instanceof HTMLElement)) return false;
+        if (!isElementPlusSelectInput(el)) return false;
+        if (el.disabled) return false;
+        // 切换商户下拉不显示⚡，也不参与一键填充
+        if (isMerchantSwitchElSelectInput(el)) return false;
+        return true;
+      });
 
-          // 若页面已经在卸载/刷新中，立刻停止
-          if (document.visibilityState === 'hidden') break;
-
-          const ok = await randomPickFromElSelectInput(input);
-          if (ok) filled++;
-
-          // 选择后再缓一缓，避免联动校验/请求触发跳转
-          await sleep(120);
-          continue;
-        }
-
-        if (!isFillableInput(input)) continue;
+      // 1) 先填充普通输入框
+      for (const input of normalInputs) {
+        if (document.visibilityState === 'hidden') break;
 
         const typeKey = getRememberedTypeKey(input);
         if (!typeKey || typeKey === 'auto') continue;
 
         fillInput(input, typeKey);
         filled++;
+      }
+
+      // 2) 再处理下拉（el-select 随机选）
+      for (const input of elSelectInputs) {
+        await sleep(200);
+        if (document.visibilityState === 'hidden') break;
+
+        const ok = await randomPickFromElSelectInput(input);
+        if (ok) filled++;
+
+        await sleep(120);
       }
     } finally {
       IS_BATCH_FILLING = false;
@@ -1198,7 +1206,7 @@
       if (!input) return;
       if (!isElementPlusSelectInput(input)) return;
 
-      // 禁用“切换商户”下拉：不做自动随机选择
+      // 切换商户下拉：不做自动随机选择（也不会显示⚡）
       if (isMerchantSwitchElSelectInput(input)) return;
 
       // 只对“尚未有值”的下拉做自动随机，避免覆盖用户已选内容
@@ -1239,9 +1247,11 @@
   }
 
   function shouldCreateIconForInput(input) {
-    // 对于 el-select：readonly 是正常情况，必须允许插入⚡
+    // 对于 el-select：readonly 是正常情况，但“切换商户”第一个下拉不显示⚡
     if (isElementPlusSelectInput(input)) {
-      return !input.disabled;
+      if (input.disabled) return false;
+      if (isMerchantSwitchElSelectInput(input)) return false;
+      return true;
     }
     // 普通输入：沿用原规则（readonly/disabled 不加⚡）
     return isFillableInput(input);
@@ -1325,13 +1335,8 @@
       e.stopPropagation();
 
       // ElementPlus el-select：点击⚡时随机选择一项（行政区等）
+      // 注：切换商户下拉不会生成⚡，因此这里无需单独判断
       if (isElementPlusSelectInput(input)) {
-        // 禁用“切换商户”下拉
-        if (isMerchantSwitchElSelectInput(input)) {
-          showToast('切换商户下拉已禁用⚡', { duration: 900 });
-          return;
-        }
-
         const ok = await randomPickFromElSelectInput(input);
         if (ok) showToast('已随机选择一项', { duration: 900 });
         else showToast('下拉暂无可选项', { duration: 900 });
