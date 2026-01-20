@@ -318,14 +318,13 @@
       let remembered = FIELD_TYPE_MEMORY.get(input);
       if (!remembered) remembered = loadPersistedFieldType(input);
 
-      // el-select：默认认为“已记忆”（蓝色⚡），以便一键填充时包含下拉随机选择
-      const active = isElementPlusSelectInput(input) ? true : (remembered && remembered !== 'auto');
+      // UI 约定（两态）：
+      // - 灰色：未选择过具体类型（含默认/选择 auto 清除）
+      // - 绿色：选择过具体类型
+      const isTyped = !!(remembered && remembered !== 'auto');
 
-      if (active) {
-        icon.classList.add('auto-fill-icon--remembered');
-      } else {
-        icon.classList.remove('auto-fill-icon--remembered');
-      }
+      icon.classList.toggle('auto-fill-icon--typed', isTyped);
+      icon.classList.toggle('auto-fill-icon--idle', !isTyped);
     } catch (e) {
       // ignore
     }
@@ -336,13 +335,22 @@
       const key = storageKeyForInput(input);
       if (!key) return;
 
+      // 标记“选择过”（用于灰色态）
+      try {
+        const icon = INPUT_ICON_MAP.get(input) || input.nextElementSibling;
+        if (icon && icon.classList?.contains('auto-fill-icon')) {
+          icon.dataset.autoFillEverChosen = '1';
+        }
+      } catch (e) {}
+
       if (!typeKey || typeKey === 'auto') {
-        // 清理 v2/v1（如果存在）
+        // 选择 auto = 清理 v2/v1（如果存在）
         const keyV2 = storageKeyV2ForInput(input);
         const keyV1 = storageKeyV1ForInput(input);
         if (keyV2) localStorage.removeItem(keyV2);
         if (keyV1) localStorage.removeItem(keyV1);
 
+        // 不写入 auto（让它保持“无记忆”），但 UI 进入“灰色选择过(auto)”态
         updateIconRememberedState(input);
         return;
       }
@@ -618,11 +626,18 @@
     const oldValue = input.value;
 
     let content = null;
-    if (typeKey && typeKey !== 'auto') {
+
+    // 选择 auto：视为“清除记忆”，需要同步清空 WeakMap + localStorage，并更新 UI
+    if (!typeKey || typeKey === 'auto') {
+      FIELD_TYPE_MEMORY.delete(input);
+      persistFieldType(input, 'auto'); // 内部会清理 localStorage，并把 UI 置灰
+      // content 仍走 auto 的生成逻辑
+    } else {
       content = generateByType(typeKey);
       FIELD_TYPE_MEMORY.set(input, typeKey);
       persistFieldType(input, typeKey);
     }
+
     if (content == null) {
       content = generateFillContent(input);
     }
@@ -968,6 +983,12 @@
       item.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        // 只要点过菜单，就算“选择过”
+        try {
+          icon.dataset.autoFillEverChosen = '1';
+        } catch (err) {}
+
         fillInput(input, t.key);
         hideMenu(menu);
       });
@@ -1320,6 +1341,9 @@
     // hover 显示类型选择；点击沿用“自动/记忆类型”直接填充
     let hoverTimer = null;
 
+    // 初始化 UI 状态：首次创建为默认态
+    icon.dataset.autoFillEverChosen = icon.dataset.autoFillEverChosen || '0';
+
     icon.addEventListener('mouseenter', function() {
       // el-select 下拉：不显示“类型选择菜单”，只保留点击随机选择
       if (isElementPlusSelectInput(input)) return;
@@ -1369,7 +1393,9 @@
         }
       }
 
-      fillInput(input, remembered || 'auto');
+      // 若用户选择过 auto（灰色态），则点击⚡按 auto 随机填充，而不是沿用旧类型
+      const iconStateChosenAuto = icon.dataset.autoFillEverChosen === '1' && (!remembered || remembered === 'auto');
+      fillInput(input, iconStateChosenAuto ? 'auto' : (remembered || 'auto'));
     });
 
     // 添加到输入框后面
@@ -1624,9 +1650,17 @@
             .auto-fill-type-menu {
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
             }
-            .auto-fill-icon.auto-fill-icon--remembered {
-                color: #1677ff !important;
-                background-color: rgba(22, 119, 255, 0.12) !important;
+            /* ===== ⚡ UI 状态（两态）=====
+             * 灰色：未选择过具体类型（含默认/选择auto清除）
+             * 绿色：选择过具体类型
+             */
+            .auto-fill-icon.auto-fill-icon--idle {
+                color: #8c8c8c !important;
+                background-color: rgba(140, 140, 140, 0.14) !important;
+            }
+            .auto-fill-icon.auto-fill-icon--typed {
+                color: #4CAF50 !important;
+                background-color: rgba(76, 175, 80, 0.10) !important;
             }
 
             /* ElementPlus wrapper 常用 flex，避免⚡被压缩/换行 */
