@@ -616,9 +616,24 @@
     const v = clampToMaxLength(input, value);
 
     try { input.focus(); } catch (e) {}
-    input.value = v;
+
+    // 一些框架（Vue/ElementPlus）需要走原生 setter 才能触发响应式更新
+    try {
+      const proto = input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+      if (desc && typeof desc.set === 'function') desc.set.call(input, v);
+      else input.value = v;
+    } catch (e) {
+      input.value = v;
+    }
+
+    // ElementPlus 的日期/输入类组件常依赖 compositionend
+    input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: v }));
+
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.dispatchEvent(new Event('blur', { bubbles: true }));
+
     return v;
   }
 
@@ -691,7 +706,30 @@
 
     IS_BATCH_FILLING = true;
     try {
-      const all = Array.from(document.querySelectorAll('input, textarea, select'));
+      // 只在“当前最高层可见弹窗/对话框”内一键填充；
+      // 若页面打开了弹窗表单，就不要去填充被遮罩覆盖的页面底层表单。
+      const getActiveRoot = () => {
+        // 仅当存在“确实打开的弹窗内容”时，才把 root 限制在弹窗里；
+        // 否则用 document，避免误命中常驻 overlay（导致一个都填不进去）。
+        const dialogContents = Array.from(document.querySelectorAll('.el-dialog__body, .el-drawer__body, .el-message-box__content')).filter(isElementVisible);
+        if (dialogContents.length > 0) {
+          // 取最后一个可见的（最上层）
+          return dialogContents[dialogContents.length - 1];
+        }
+
+        // 某些版本只有 wrapper：尝试找“可见且内部有 input”的 wrapper
+        const wrappers = Array.from(document.querySelectorAll('.el-dialog__wrapper, .el-drawer__wrapper')).filter(isElementVisible);
+        for (let i = wrappers.length - 1; i >= 0; i--) {
+          const w = wrappers[i];
+          if (w.querySelector('input, textarea, select')) return w;
+        }
+
+        return document;
+      };
+
+      const root = getActiveRoot();
+
+      const all = Array.from(root.querySelectorAll('input, textarea, select'));
 
       const normalInputs = all.filter((el) => {
         if (!(el instanceof HTMLElement)) return false;
@@ -699,7 +737,7 @@
         if (isElementPlusSelectInput(el)) return false;
         // 必须是表单内且会创建⚡（没有⚡的一律不参与一键填充）
         if (!shouldCreateIconForInput(el)) return false;
-        // 仅处理可填充输入框，且必须是“蓝色记忆字段”
+        // 仅处理可填充输入框，且必须是“记忆字段”
         if (!isFillableInput(el)) return false;
         const typeKey = getRememberedTypeKey(el);
         return !!(typeKey && typeKey !== 'auto');
@@ -716,21 +754,47 @@
         return true;
       });
 
+      const isActuallyVisibleInput = (el) => {
+        try {
+          if (!el || !el.isConnected) return false;
+          const rect = el.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) return false;
+          if (!isElementVisible(el)) return false;
+
+          // 在弹窗 root 内时，严格 elementFromPoint 容易误判（命中到 wrapper/slot/遮罩层）
+          // 这里放宽：只要 input 自己可见、且不在屏幕外，就认为可填充
+          // （root 已经限制在弹窗内容里了，因此不会误填充底层页面）
+          if (rect.bottom < 0 || rect.top > window.innerHeight) return false;
+
+          return true;
+        } catch (e) {
+          return true;
+        }
+      };
+
       // 1) 先填充普通输入框
       for (const input of normalInputs) {
         if (document.visibilityState === 'hidden') break;
+
+        // 如果该元素被遮罩/弹窗覆盖（不可交互），就跳过
+        if (!isActuallyVisibleInput(input)) continue;
 
         const typeKey = getRememberedTypeKey(input);
         if (!typeKey || typeKey === 'auto') continue;
 
         fillInput(input, typeKey);
         filled++;
+
+        // 日期/联动校验类字段，给一点时间让组件更新内部状态，否则下一个字段可能被覆盖/回滚
+        await sleep(60);
       }
 
       // 2) 再处理下拉（el-select 随机选）
       for (const input of elSelectInputs) {
         await sleep(200);
         if (document.visibilityState === 'hidden') break;
+
+        if (!isActuallyVisibleInput(input)) continue;
 
         const ok = await randomPickFromElSelectInput(input);
         if (ok) filled++;
