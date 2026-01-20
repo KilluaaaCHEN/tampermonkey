@@ -1719,12 +1719,14 @@
              * 绿色：选择过具体类型
              */
             .auto-fill-icon.auto-fill-icon--idle {
-                color: #8c8c8c !important;
-                background-color: rgba(140, 140, 140, 0.14) !important;
+                color: #9aa0a6 !important;
+                background-color: rgba(154, 160, 166, 0.18) !important;
             }
             .auto-fill-icon.auto-fill-icon--typed {
-                color: #4CAF50 !important;
-                background-color: rgba(76, 175, 80, 0.10) !important;
+                color: #1B5E20 !important;
+                background-color: rgba(76, 175, 80, 0.18) !important;
+                box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);
+                font-weight: 900;
             }
 
             /* ElementPlus wrapper 常用 flex，避免⚡被压缩/换行 */
