@@ -808,22 +808,15 @@
     showToast(filled > 0 ? `已一键填充 ${filled} 项` : '没有可一键填充的字段', { duration: 1400 });
   }
 
-  const LIGHTNING_HIDDEN_KEY = 'autoFill.lightning.hidden';
+  // ⚡隐藏/显示：不做持久化，每次刷新默认显示
+  let LIGHTNING_HIDDEN = false;
 
   function isLightningHidden() {
-    try {
-      return localStorage.getItem(LIGHTNING_HIDDEN_KEY) === '1';
-    } catch (e) {
-      return false;
-    }
+    return LIGHTNING_HIDDEN;
   }
 
   function setLightningHidden(hidden) {
-    try {
-      localStorage.setItem(LIGHTNING_HIDDEN_KEY, hidden ? '1' : '0');
-    } catch (e) {
-      // ignore
-    }
+    LIGHTNING_HIDDEN = !!hidden;
   }
 
   function applyLightningHiddenState() {
@@ -839,12 +832,24 @@
       el.style.display = hidden ? 'none' : el.style.display;
     });
 
-    // 更新按钮文案
+    // 更新按钮文案 + 样式（区分隐藏/显示状态，不一直橙色）
     const toggleBtn = document.getElementById('auto-fill-toggle-lightning');
     if (toggleBtn) {
       toggleBtn.textContent = hidden ? '显示⚡' : '隐藏⚡';
       toggleBtn.title = hidden ? '显示所有输入框后的⚡填充按钮' : '隐藏所有输入框后的⚡填充按钮';
       toggleBtn.dataset.hidden = hidden ? '1' : '0';
+
+      if (hidden) {
+        // 当前是“隐藏”态：按钮提示“显示⚡”，
+        // 用橙色（警示/操作）
+        toggleBtn.style.background = 'linear-gradient(135deg, #ff7a45, #ffa940)';
+        toggleBtn.style.boxShadow = '0 10px 26px rgba(255,122,69,0.28)';
+      } else {
+        // 当前是“显示”态：按钮提示“隐藏⚡”，
+        // 用蓝色（类似主按钮）
+        toggleBtn.style.background = 'linear-gradient(135deg, #1677ff, #69b1ff)';
+        toggleBtn.style.boxShadow = '0 10px 26px rgba(22,119,255,0.28)';
+      }
     }
   }
 
@@ -894,7 +899,8 @@
 
     document.body.appendChild(btn);
 
-    // 初始化一次状态
+    // 初始化一次状态（默认显示⚡；不从任何存储恢复）
+    setLightningHidden(false);
     applyLightningHiddenState();
   }
 
