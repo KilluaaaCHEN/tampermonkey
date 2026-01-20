@@ -394,7 +394,14 @@
   }
 
   const FILL_TYPES = [
+
     { key: 'auto', label: '自动', icon: '⚙️' },
+    { key: 'number', label: '数字', icon: '🔢' },
+    { key: 'letters', label: '字母', icon: '🔤' },
+    { key: 'chinese', label: '中文', icon: '🀄️' },
+    { key: 'mixed', label: '混合', icon: '🧩' },
+
+    { key: '__sep__' },
     { key: 'name', label: '姓名', icon: '👤' },
     { key: 'phone', label: '手机号', icon: '📱' },
     { key: 'landline', label: '电话(座机)', icon: '☎️' },
@@ -404,18 +411,10 @@
     { key: 'date', label: '日期(yyyy-mm-dd)', icon: '📅' },
 
     { key: '__sep__' },
-
     { key: 'company', label: '公司名称', icon: '🏢' },
     { key: 'creditCode', label: '统一社会信用代码', icon: '🪪' },
     { key: 'licenseNo', label: '营业执照号(15位)', icon: '📄' },
     { key: 'taxNo', label: '纳税人识别号', icon: '🧾' },
-
-    { key: '__sep__' },
-
-    { key: 'number', label: '数字', icon: '🔢' },
-    { key: 'letters', label: '字母', icon: '🔤' },
-    { key: 'chinese', label: '中文', icon: '🀄️' },
-    { key: 'mixed', label: '混合', icon: '🧩' }
   ];
 
   function genCreditCode() {
