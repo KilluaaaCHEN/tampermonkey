@@ -682,6 +682,8 @@
         if (!(el instanceof HTMLElement)) return false;
         // 排除 el-select 的 input（readonly/combobox），它属于“select 阶段”
         if (isElementPlusSelectInput(el)) return false;
+        // 必须是表单内且会创建⚡（没有⚡的一律不参与一键填充）
+        if (!shouldCreateIconForInput(el)) return false;
         // 仅处理可填充输入框，且必须是“蓝色记忆字段”
         if (!isFillableInput(el)) return false;
         const typeKey = getRememberedTypeKey(el);
@@ -691,6 +693,8 @@
       const elSelectInputs = all.filter((el) => {
         if (!(el instanceof HTMLElement)) return false;
         if (!isElementPlusSelectInput(el)) return false;
+        // 必须是表单内且会创建⚡（没有⚡的一律不参与一键填充）
+        if (!shouldCreateIconForInput(el)) return false;
         if (el.disabled) return false;
         // 切换商户下拉不显示⚡，也不参与一键填充
         if (isMerchantSwitchElSelectInput(el)) return false;
@@ -1246,7 +1250,20 @@
     return false;
   }
 
+  function isInFormContext(input) {
+    // 只有“表单区域”才需要⚡：避免列表筛选/分页(例如 20条/页)也出现⚡
+    // 以 form / el-form / el-form-item 作为表单上下文判断
+    try {
+      return !!(input.closest?.('form') || input.closest?.('.el-form') || input.closest?.('.el-form-item'));
+    } catch (e) {
+      return false;
+    }
+  }
+
   function shouldCreateIconForInput(input) {
+    // 只在表单上下文内创建⚡
+    if (!isInFormContext(input)) return false;
+
     // 对于 el-select：readonly 是正常情况，但“切换商户”第一个下拉不显示⚡
     if (isElementPlusSelectInput(input)) {
       if (input.disabled) return false;
