@@ -1282,17 +1282,17 @@
     const spaceBelow = vh - rect.bottom;
     const spaceAbove = rect.top;
 
-    let top;
-    if (spaceBelow >= menuRect.height + margin || spaceBelow >= spaceAbove) {
-      // 向下展开：下移一点，避免遮挡⚡
-      top = rect.bottom + 10;
-    } else {
-      // 向上展开：上移一点，避免贴得太近挡到⚡
-      top = rect.top - menuRect.height - 12;
+    // 让菜单与⚡在视觉上“高度保持一致”：默认把菜单顶部对齐到⚡的顶部
+    // 如果顶部空间不足/或会超出屏幕，再做兜底
+    let top = rect.top;
+    if (top + menuRect.height + margin > vh) {
+      top = vh - menuRect.height - margin;
     }
+    if (top < margin) top = margin;
 
     // 左右边界处理：优先把菜单放到⚡的右侧，避免遮挡按钮本身
-    let left = rect.right + 10;
+    // 距离调小一点，避免“⚡和类型菜单离太远”
+    let left = rect.right + 4;
 
     // 如果右侧空间不足，再退回到 icon 左侧（原逻辑）
     if (left + menuRect.width + margin > vw) {
