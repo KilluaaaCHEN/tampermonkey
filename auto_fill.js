@@ -842,39 +842,27 @@
     if (toggleBtn) {
       toggleBtn.dataset.hidden = hidden ? '1' : '0';
 
+      // 无论隐藏/显示态，都用 icon 形态（你反馈：隐藏按钮也变成 icon）
+      toggleBtn.textContent = hidden ? '⚡' : '🙈';
+      toggleBtn.title = hidden ? '显示所有输入框后的⚡填充按钮' : '隐藏所有输入框后的⚡填充按钮';
+
+      // icon 变小一点
+      toggleBtn.style.padding = '6px';
+      toggleBtn.style.width = '30px';
+      toggleBtn.style.height = '30px';
+      toggleBtn.style.borderRadius = '15px';
+      toggleBtn.style.display = 'inline-flex';
+      toggleBtn.style.alignItems = 'center';
+      toggleBtn.style.justifyContent = 'center';
+      toggleBtn.style.fontSize = '14px';
+      toggleBtn.style.letterSpacing = '0';
+
       if (hidden) {
-        toggleBtn.textContent = '⚡';
-        toggleBtn.title = '显示所有输入框后的⚡填充按钮';
-
-        toggleBtn.style.padding = '8px';
-        toggleBtn.style.width = '36px';
-        toggleBtn.style.height = '36px';
-        toggleBtn.style.borderRadius = '18px';
-        toggleBtn.style.display = 'inline-flex';
-        toggleBtn.style.alignItems = 'center';
-        toggleBtn.style.justifyContent = 'center';
-        toggleBtn.style.fontSize = '16px';
-        toggleBtn.style.letterSpacing = '0';
-
         toggleBtn.style.background = 'linear-gradient(135deg, #ff7a45, #ffa940)';
-        toggleBtn.style.boxShadow = '0 10px 26px rgba(255,122,69,0.28)';
+        toggleBtn.style.boxShadow = '0 10px 22px rgba(255,122,69,0.24)';
       } else {
-        toggleBtn.textContent = '隐藏⚡';
-        toggleBtn.title = '隐藏所有输入框后的⚡填充按钮';
-
-        // 恢复按钮大小（与创建时一致）
-        toggleBtn.style.padding = '10px 16px';
-        toggleBtn.style.width = '';
-        toggleBtn.style.height = '';
-        toggleBtn.style.borderRadius = '12px';
-        toggleBtn.style.display = '';
-        toggleBtn.style.alignItems = '';
-        toggleBtn.style.justifyContent = '';
-        toggleBtn.style.fontSize = '14px';
-        toggleBtn.style.letterSpacing = '0.5px';
-
         toggleBtn.style.background = 'linear-gradient(135deg, #1677ff, #69b1ff)';
-        toggleBtn.style.boxShadow = '0 10px 26px rgba(22,119,255,0.28)';
+        toggleBtn.style.boxShadow = '0 10px 22px rgba(22,119,255,0.24)';
       }
     }
   }
