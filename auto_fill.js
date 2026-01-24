@@ -1066,6 +1066,17 @@
     document.body.appendChild(btn);
   }
 
+  // 全局：同一时刻只允许打开一个类型菜单
+  let ACTIVE_TYPE_MENU = null;
+  function closeActiveTypeMenu() {
+    try {
+      if (ACTIVE_TYPE_MENU && ACTIVE_TYPE_MENU.style) {
+        ACTIVE_TYPE_MENU.style.display = 'none';
+      }
+    } catch (e) {}
+    ACTIVE_TYPE_MENU = null;
+  }
+
   function createTypeMenu(icon, input) {
     // 单例：避免同一个 icon 反复创建
     if (icon._autoFillMenu) return icon._autoFillMenu;
@@ -1079,28 +1090,78 @@
       border: 1px solid rgba(0,0,0,0.12);
       box-shadow: 0 6px 18px rgba(0,0,0,0.15);
       border-radius: 6px;
-      padding: 6px;
+      padding: 8px;
       display: none;
       min-width: 140px;
+      max-width: min(520px, calc(100vw - 16px));
       font-size: 12px;
       line-height: 1.2;
     `;
 
+    // 最外层包一层 flex 容器：强制三组横向排列
+    const groupWrap = document.createElement('div');
+    groupWrap.className = 'auto-fill-type-group-wrap';
+    groupWrap.style.cssText = `
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      align-items: flex-start;
+      width: 100%;
+    `;
+    menu.appendChild(groupWrap);
+
+    // 三组容器（每组内竖排）
+    const groupStyle = `
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 140px;
+      flex: 1 1 0;
+      border-left: 1px solid rgba(0,0,0,0.08);
+      padding-left: 8px;
+    `;
+    const col1 = document.createElement('div');
+    const col2 = document.createElement('div');
+    const col3 = document.createElement('div');
+    col1.className = 'auto-fill-type-col auto-fill-type-col-1';
+    col2.className = 'auto-fill-type-col auto-fill-type-col-2';
+    col3.className = 'auto-fill-type-col auto-fill-type-col-3';
+    col1.style.cssText = groupStyle;
+    col2.style.cssText = groupStyle;
+    col3.style.cssText = groupStyle;
+
+    // 第一组不需要左边界
+    col1.style.borderLeft = 'none';
+    col1.style.paddingLeft = '0';
+
+    groupWrap.appendChild(col1);
+    groupWrap.appendChild(col2);
+    groupWrap.appendChild(col3);
+
     const remembered = FIELD_TYPE_MEMORY.get(input) || 'auto';
 
+    let colIdx = 0; // 0->col1, 1->col2, 2->col3
+    const cols = [col1, col2, col3];
+
+    // 预计算：把“非分隔符项”的数量平分成 3 份（兜底逻辑用，避免在 forEach 内重复 filter）
+    const nonSepItems = FILL_TYPES.filter(x => x.key !== '__sep__');
+    const nonSepCount = nonSepItems.length;
+    const perCol = Math.ceil(nonSepCount / 3);
+
+    let nonSepSeen = 0;
+
     FILL_TYPES.forEach(t => {
-      // 分隔线（不可点击）
+      // 分隔线：切换到下一列（最多三列；超出则仍放最后一列）
       if (t.key === '__sep__') {
-        const sep = document.createElement('div');
-        sep.className = 'auto-fill-type-sep';
-        sep.style.cssText = `
-          height: 1px;
-          background: rgba(0,0,0,0.10);
-          margin: 6px 6px;
-        `;
-        menu.appendChild(sep);
+        colIdx = Math.min(colIdx + 1, 2);
         return;
       }
+
+      // 兜底：按“看到的第 N 个非分隔符”来分列（稳定且 O(n)）
+      const fallbackCol = Math.min(Math.floor(nonSepSeen / perCol), 2);
+      nonSepSeen++;
+      // 只要分隔符逻辑没有把列推进去（例如页面上实际运行的 FILL_TYPES 没有 __sep__），也能保证三列
+      colIdx = Math.max(colIdx, fallbackCol);
 
       const item = document.createElement('div');
       item.className = 'auto-fill-type-item';
@@ -1160,8 +1221,20 @@
         fillInput(input, t.key);
         hideMenu(menu);
       });
-      menu.appendChild(item);
+
+      cols[colIdx].appendChild(item);
     });
+
+    // debug：方便你在控制台确认三列是否有内容
+    try {
+      window.__AUTO_FILL_DEBUG = window.__AUTO_FILL_DEBUG || {};
+      window.__AUTO_FILL_DEBUG.typeMenuColumns = {
+        col1: col1.children.length,
+        col2: col2.children.length,
+        col3: col3.children.length,
+        groupWrapDisplay: groupWrap.style.display,
+      };
+    } catch (e) {}
 
     document.body.appendChild(menu);
     icon._autoFillMenu = menu;
@@ -1179,6 +1252,9 @@
   }
 
   function showMenu(icon, input) {
+    // 打开新菜单前，先关闭旧菜单（防止出现多个）
+    closeActiveTypeMenu();
+
     const menu = createTypeMenu(icon, input);
 
     // 刷新打勾状态
@@ -1239,11 +1315,14 @@
     menu.style.visibility = 'visible';
     menu.style.top = `${Math.round(top)}px`;
     menu.style.left = `${Math.round(left)}px`;
+
+    ACTIVE_TYPE_MENU = menu;
   }
 
   function hideMenu(menu) {
     if (!menu) return;
     menu.style.display = 'none';
+    if (ACTIVE_TYPE_MENU === menu) ACTIVE_TYPE_MENU = null;
   }
 
   // 创建填充图标
