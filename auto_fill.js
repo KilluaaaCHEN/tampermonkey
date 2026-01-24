@@ -1777,6 +1777,7 @@
 
     // hover 显示类型选择；点击沿用“自动/记忆类型”直接填充
     let hoverTimer = null;
+    let lastHoverTs = 0;
 
     // 初始化 UI 状态：首次创建为默认态
     icon.dataset.autoFillEverChosen = icon.dataset.autoFillEverChosen || '0';
@@ -1785,9 +1786,18 @@
       // el-select 下拉：不显示“类型选择菜单”，只保留点击随机选择
       if (isElementPlusSelectInput(input)) return;
 
+      lastHoverTs = Date.now();
+
+      // 如果刚刚在另一个⚡上打开过菜单，切换时不再延迟（提升“闪电切换”的响应速度）
+      // 否则保留一点点延迟，避免鼠标扫过时频繁弹出
+      const hasActive = !!(ACTIVE_TYPE_MENU && ACTIVE_TYPE_MENU.style && ACTIVE_TYPE_MENU.style.display === 'block');
+      const delay = hasActive ? 0 : 120;
+
       hoverTimer = setTimeout(() => {
+        // 若鼠标已经离开，则不打开
+        if (!icon.matches(':hover')) return;
         showMenu(icon, input);
-      }, 150);
+      }, delay);
     });
 
     icon.addEventListener('mouseleave', function() {
@@ -1800,11 +1810,16 @@
       // 给用户移动到菜单的时间；若鼠标不在菜单上，则关闭
       const menu = icon._autoFillMenu;
       if (!menu) return;
+
+      // 若用户正在“快速切换”不同⚡，不要立即关掉，避免闪烁/卡顿感
+      const now = Date.now();
+      const fastSwitch = now - lastHoverTs < 250;
+
       setTimeout(() => {
         const isOverMenu = menu.matches(':hover');
         const isOverIcon = icon.matches(':hover');
         if (!isOverMenu && !isOverIcon) hideMenu(menu);
-      }, 200);
+      }, fastSwitch ? 60 : 200);
     });
 
     // 点击事件 - 默认填充（自动/记忆；支持刷新后从 localStorage 恢复）
