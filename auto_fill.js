@@ -30,7 +30,17 @@
     companies: ['科技有限公司', '贸易有限公司', '发展有限公司', '集团股份有限公司', '信息技术有限公司'],
     addresses: ['人民路123号', '中山路456号', '解放路789号', '建设路101号', '和平路202号'],
     emails: ['example', 'test', 'user', 'admin', 'contact'],
-    domains: ['gmail.com', 'qq.com', '163.com', 'outlook.com', 'yahoo.com']
+    domains: ['gmail.com', 'qq.com', '163.com', 'outlook.com', 'yahoo.com'],
+    nations: [
+      '汉族','蒙古族','回族','藏族','维吾尔族','苗族','彝族','壮族','布依族','朝鲜族','满族','侗族','瑶族','白族','土家族','哈尼族',
+      '哈萨克族','傣族','黎族','傈僳族','佤族','畲族','高山族','拉祜族','水族','东乡族','纳西族','景颇族','柯尔克孜族','土族',
+      '达斡尔族','仫佬族','羌族','布朗族','撒拉族','毛南族','仡佬族','锡伯族','阿昌族','普米族','塔吉克族','怒族','乌孜别克族',
+      '俄罗斯族','鄂温克族','德昂族','保安族','裕固族','京族','塔塔尔族','独龙族','鄂伦春族','赫哲族','门巴族','珞巴族','基诺族'
+    ],
+    idCardAreaCodes: [
+      // 常见地市的前6位行政区划代码（用于生成身份证号）
+      '110101','110105','120101','120105','310101','310104','440103','440106','440305','330106','320102','420106','510104','500103','610104'
+    ]
   };
 
   // 生成随机数据
@@ -402,7 +412,9 @@
     { key: 'mixed', label: '混合', icon: '🧩' },
 
     { key: '__sep__' },
-    { key: 'name', label: '姓名', icon: '👤' },
+    { key: 'name', label: '姓名(2-4汉字)', icon: '👤' },
+    { key: 'nation', label: '民族', icon: '🧬' },
+    { key: 'idCard', label: '身份证号(18位)', icon: '🪪' },
     { key: 'phone', label: '手机号', icon: '📱' },
     { key: 'landline', label: '电话(座机)', icon: '☎️' },
     { key: 'email', label: '邮箱', icon: '✉️' },
@@ -466,10 +478,75 @@
     return formatDateYMD(d);
   }
 
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function genCnName2to4() {
+    // 常见姓氏（含少量复姓）
+    const surnames = [
+      '赵','钱','孙','李','周','吴','郑','王','冯','陈','褚','卫','蒋','沈','韩','杨','朱','秦','尤','许','何','吕','施','张','孔','曹','严','华','金','魏','陶','姜',
+      '司马','欧阳','诸葛','上官','东方','夏侯','尉迟','公孙','慕容'
+    ];
+    const givenChars = '伟芳娜秀英敏静丽强艳军杰涛明超秀兰霞平刚亮磊洋勇艳玲婷鹏红慧丹宇浩鑫晨博雪欣';
+    const surname = surnames[randomInt(0, surnames.length - 1)];
+    const givenLen = randomInt(1, 2); // 名 1-2 个字，配合姓(1/2字) => 总长 2-4
+    let given = '';
+    for (let i = 0; i < givenLen; i++) {
+      given += givenChars.charAt(Math.floor(Math.random() * givenChars.length));
+    }
+
+    // 若是复姓（2字姓），确保总长度不超过 4：复姓(2) + 名(2) = 4 OK；复姓 + 名(1)=3 OK
+    // 若是单姓(1) + 名(2)=3 OK；单姓+名(1)=2 OK
+    return `${surname}${given}`.slice(0, 4);
+  }
+
+  function randomNation() {
+    return CHINESE_DATA.nations[Math.floor(Math.random() * CHINESE_DATA.nations.length)];
+  }
+
+  function calcChinaIdCardCheckDigit(id17) {
+    // GB 11643—1999：加权因子 + 校验码映射
+    const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+    const mapping = ['1','0','X','9','8','7','6','5','4','3','2'];
+    let sum = 0;
+    for (let i = 0; i < 17; i++) {
+      sum += Number(id17[i]) * weights[i];
+    }
+    return mapping[sum % 11];
+  }
+
+  function genChinaIdCard18({ minAge = 18, maxAge = 60 } = {}) {
+    const areaCodes = CHINESE_DATA.idCardAreaCodes || ['110101'];
+    const area = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+
+    // 出生日期：yyyyMMdd（按年龄区间）
+    const now = new Date();
+    const maxBirth = new Date(now.getFullYear() - minAge, now.getMonth(), now.getDate());
+    const minBirth = new Date(now.getFullYear() - maxAge, now.getMonth(), now.getDate());
+    const birthTime = randomInt(minBirth.getTime(), maxBirth.getTime());
+    const birth = new Date(birthTime);
+    const y = birth.getFullYear();
+    const m = pad2(birth.getMonth() + 1);
+    const d = pad2(birth.getDate());
+    const ymd = `${y}${m}${d}`;
+
+    // 顺序码 3 位（最后一位奇数男偶数女，这里随机）
+    const seq = String(randomInt(1, 999)).padStart(3, '0');
+
+    const id17 = `${area}${ymd}${seq}`;
+    const check = calcChinaIdCardCheckDigit(id17);
+    return `${id17}${check}`;
+  }
+
   function generateByType(typeKey) {
     switch (typeKey) {
       case 'name':
-        return DataGenerator.name();
+        return genCnName2to4();
+      case 'nation':
+        return randomNation();
+      case 'idCard':
+        return genChinaIdCard18();
       case 'phone':
         return DataGenerator.phone();
       case 'landline':
@@ -545,7 +622,15 @@
     }
     else if (type === 'text' && (name.includes('name') || id.includes('name') || placeholder.includes('姓名') ||
         placeholder.includes('名字'))) {
-      return DataGenerator.name();
+      return genCnName2to4();
+    }
+    else if (name.includes('nation') || id.includes('nation') || placeholder.includes('民族') || placeholder.includes('名族')) {
+      return randomNation();
+    }
+    else if (name.includes('idcard') || name.includes('id_card') || id.includes('idcard') || id.includes('id_card') ||
+        name.includes('cardno') || id.includes('cardno') ||
+        placeholder.includes('身份证') || placeholder.includes('证件号') || placeholder.includes('证件号码')) {
+      return genChinaIdCard18();
     }
     else if (name.includes('address') || id.includes('address') || placeholder.includes('地址')) {
       return DataGenerator.address();
