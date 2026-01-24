@@ -823,30 +823,56 @@
     const hidden = isLightningHidden();
     const display = hidden ? 'none' : '';
 
+    // 1) ⚡本身（输入框右侧）
     document.querySelectorAll('.auto-fill-icon').forEach((el) => {
       el.style.display = display;
     });
 
-    // 如果有打开的菜单，也一并隐藏
+    // 2) 如果有打开的菜单，也一并隐藏
     document.querySelectorAll('.auto-fill-type-menu').forEach((el) => {
       el.style.display = hidden ? 'none' : el.style.display;
     });
 
-    // 更新按钮文案 + 样式（区分隐藏/显示状态，不一直橙色）
+    // 3) 顶部两个按钮（“一键填充”、“隐藏⚡”）：隐藏时都隐藏，显示时恢复
+    const oneClickBtn = document.getElementById('auto-fill-one-click');
+    if (oneClickBtn) oneClickBtn.style.display = hidden ? 'none' : '';
+
+    // 4) “隐藏⚡”按钮：隐藏态变为小 icon；显示态恢复为正常按钮
     const toggleBtn = document.getElementById('auto-fill-toggle-lightning');
     if (toggleBtn) {
-      toggleBtn.textContent = hidden ? '显示⚡' : '隐藏⚡';
-      toggleBtn.title = hidden ? '显示所有输入框后的⚡填充按钮' : '隐藏所有输入框后的⚡填充按钮';
       toggleBtn.dataset.hidden = hidden ? '1' : '0';
 
       if (hidden) {
-        // 当前是“隐藏”态：按钮提示“显示⚡”，
-        // 用橙色（警示/操作）
+        toggleBtn.textContent = '⚡';
+        toggleBtn.title = '显示所有输入框后的⚡填充按钮';
+
+        toggleBtn.style.padding = '8px';
+        toggleBtn.style.width = '36px';
+        toggleBtn.style.height = '36px';
+        toggleBtn.style.borderRadius = '18px';
+        toggleBtn.style.display = 'inline-flex';
+        toggleBtn.style.alignItems = 'center';
+        toggleBtn.style.justifyContent = 'center';
+        toggleBtn.style.fontSize = '16px';
+        toggleBtn.style.letterSpacing = '0';
+
         toggleBtn.style.background = 'linear-gradient(135deg, #ff7a45, #ffa940)';
         toggleBtn.style.boxShadow = '0 10px 26px rgba(255,122,69,0.28)';
       } else {
-        // 当前是“显示”态：按钮提示“隐藏⚡”，
-        // 用蓝色（类似主按钮）
+        toggleBtn.textContent = '隐藏⚡';
+        toggleBtn.title = '隐藏所有输入框后的⚡填充按钮';
+
+        // 恢复按钮大小（与创建时一致）
+        toggleBtn.style.padding = '10px 16px';
+        toggleBtn.style.width = '';
+        toggleBtn.style.height = '';
+        toggleBtn.style.borderRadius = '12px';
+        toggleBtn.style.display = '';
+        toggleBtn.style.alignItems = '';
+        toggleBtn.style.justifyContent = '';
+        toggleBtn.style.fontSize = '14px';
+        toggleBtn.style.letterSpacing = '0.5px';
+
         toggleBtn.style.background = 'linear-gradient(135deg, #1677ff, #69b1ff)';
         toggleBtn.style.boxShadow = '0 10px 26px rgba(22,119,255,0.28)';
       }
@@ -859,7 +885,7 @@
     const btn = document.createElement('button');
     btn.id = 'auto-fill-toggle-lightning';
     btn.type = 'button';
-    btn.textContent = '一键隐藏⚡';
+    btn.textContent = '隐藏⚡';
     btn.title = '隐藏所有输入框后的⚡填充按钮';
     btn.style.cssText = `
       position: fixed;
