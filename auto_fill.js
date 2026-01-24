@@ -4,8 +4,8 @@
 // @version      1.0
 // @description  在表单输入框后添加填充图标，支持中文、数字和字母的随机填充
 // @author       You
-// @match        *://saas-test.evchargeonline.com.cn/*
-// @match        *://*.evchargeonline.com.cn/*
+// @match        https://xiaoanuat.annto.com/*
+// @match        https://xiaoanuat.annto.com/csp/*
 // @grant        none
 // ==/UserScript==
 
@@ -109,7 +109,7 @@
     mixed: (length = 10) => {
       // 混合：字母 + 数字 + 常用中文（更像真实输入）
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789' +
-        '的一是在不了有和人这中大为上个国我以要他时来用们生到作地于出就分对成会可主发年动同工也能下过子说产种面而方后多定行学法所民得经十三之进着等部度家电力里如水化高自二理起小物现实加量都两体制机当使点从业本去把性好应开它合还因由其些然前外天政四日那社义事平形相全表间样与关各重新线内数正心反你明看原又么利比或但质气第向道命此变条只没结解问意建月公无系军很情者最立代想已通并提直题党程展五果料象员革位入常文总次品式活设及管特件长求老头基资边流路级少图山统接知较将组见计别她手角期根论运农指几九区强放决西被干做必战先回则任取据处队南给色光门即保治北造百规热领七海口东导器压志世金增争济阶油思术极交受联什认六共权收证改清己美再采转更单风切打白教速花带安场身车例真务具万每目至达走积示议声报斗完类八离华名确才科张信马节话米整空元况今集温传土许步群广石记需段研界拉林律叫且究观越织装影算低持音众书布复容儿须际商非验连断深难近矿千周委素技备半办青省列习响约支般史感劳便团往酸历市克何除消构府称太准精值号率族维划选标写存候毛亲快效斯院查江型眼王按格养易置派层片始却专状育厂京识适属圆包火住调满县局照参红细引听该铁价严龙飞';
+          '的一是在不了有和人这中大为上个国我以要他时来用们生到作地于出就分对成会可主发年动同工也能下过子说产种面而方后多定行学法所民得经十三之进着等部度家电力里如水化高自二理起小物现实加量都两体制机当使点从业本去把性好应开它合还因由其些然前外天政四日那社义事平形相全表间样与关各重新线内数正心反你明看原又么利比或但质气第向道命此变条只没结解问意建月公无系军很情者最立代想已通并提直题党程展五果料象员革位入常文总次品式活设及管特件长求老头基资边流路级少图山统接知较将组见计别她手角期根论运农指几九区强放决西被干做必战先回则任取据处队南给色光门即保治北造百规热领七海口东导器压志世金增争济阶油思术极交受联什认六共权收证改清己美再采转更单风切打白教速花带安场身车例真务具万每目至达走积示议声报斗完类八离华名确才科张信马节话米整空元况今集温传土许步群广石记需段研界拉林律叫且究观越织装影算低持音众书布复容儿须际商非验连断深难近矿千周委素技备半办青省列习响约支般史感劳便团往酸历市克何除消构府称太准精值号率族维划选标写存候毛亲快效斯院查江型眼王按格养易置派层片始却专状育厂京识适属圆包火住调满县局照参红细引听该铁价严龙飞';
       let result = '';
       for (let i = 0; i < length; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -256,14 +256,14 @@
       for (let i = 0; i < 3 && node && node instanceof Element; i++) {
         const tagName = node.tagName.toLowerCase();
         const cls = (node.className || '')
-          .toString()
-          .split(/\s+/)
-          .map(s => s.trim().toLowerCase())
-          .filter(Boolean)
-          .filter(s => !/[0-9]{6,}$/.test(s))      // 过滤末尾大数字
-          .filter(s => s.length <= 24)            // 过滤超长
-          .slice(0, 2)
-          .join('.');
+            .toString()
+            .split(/\s+/)
+            .map(s => s.trim().toLowerCase())
+            .filter(Boolean)
+            .filter(s => !/[0-9]{6,}$/.test(s))      // 过滤末尾大数字
+            .filter(s => s.length <= 24)            // 过滤超长
+            .slice(0, 2)
+            .join('.');
         segs.push(cls ? `${tagName}.${cls}` : tagName);
         node = node.parentElement;
       }
@@ -1230,10 +1230,10 @@
       // 尝试触发一次滚动加载（很多 el-select 用虚拟列表）
       if (dropdown) {
         const scroller =
-          dropdown.querySelector('.el-scrollbar__wrap') ||
-          dropdown.querySelector('.el-select-dropdown__wrap') ||
-          dropdown.querySelector('[class*="scrollbar"]') ||
-          dropdown;
+            dropdown.querySelector('.el-scrollbar__wrap') ||
+            dropdown.querySelector('.el-select-dropdown__wrap') ||
+            dropdown.querySelector('[class*="scrollbar"]') ||
+            dropdown;
         try { scroller.scrollTop = scroller.scrollHeight; } catch (e) {}
       }
 
@@ -1306,7 +1306,7 @@
       // 只对“尚未有值”的下拉做自动随机，避免覆盖用户已选内容
       const wrap = getElSelectWrapByInput(input);
       const hasValue = !!wrap?.querySelector?.('.el-select__selected-item:not(.el-select__placeholder)') ||
-        !!wrap?.querySelector?.('.el-select__selection .el-select__selected-item:not(.el-select__placeholder):not(.is-transparent)');
+          !!wrap?.querySelector?.('.el-select__selection .el-select__selected-item:not(.el-select__placeholder):not(.is-transparent)');
       if (hasValue) return;
 
       // 防止组件默认 click 再次触发造成状态抖动
@@ -1325,17 +1325,36 @@
     if (!wrap) return null;
 
     return wrap.querySelector('.el-select__wrapper')
-      || wrap.querySelector('.el-input__wrapper')
-      || wrap;
+        || wrap.querySelector('.el-input__wrapper')
+        || wrap;
   }
 
   function hasExistingAutoFillIconNear(input) {
-    // 1) 原逻辑：input 后紧邻
-    if (input.nextElementSibling && input.nextElementSibling.classList?.contains('auto-fill-icon')) return true;
+    // 现在⚡可能被挂在：
+    // - ElementUI/ElementPlus 的 .el-input__suffix-inner 内
+    // - textarea 父容器内（absolute）
+    // - el-select wrapper 内
+    // 因此需要更稳健的“是否已存在”判断，避免 MutationObserver 重复插入导致多个⚡。
+    try {
+      // 1) input 后紧邻（历史逻辑）
+      if (input.nextElementSibling && input.nextElementSibling.classList?.contains('auto-fill-icon')) return true;
 
-    // 2) el-select：wrapper 内已存在（避免重复插入）
-    const mount = getElSelectIconMountNodeByInput(input);
-    if (mount && mount.querySelector?.(':scope > .auto-fill-icon, .auto-fill-icon')) return true;
+      // 2) ElementUI/ElementPlus：在同一个 .el-input 容器内是否已有⚡
+      const elInputWrap = input.closest?.('.el-input');
+      if (elInputWrap && elInputWrap.querySelector?.('.auto-fill-icon')) return true;
+
+      // 3) textarea：父容器内是否已有⚡
+      if ((input.tagName || '').toLowerCase() === 'textarea') {
+        const wrap = input.parentElement;
+        if (wrap && wrap.querySelector?.(':scope > .auto-fill-icon, .auto-fill-icon')) return true;
+      }
+
+      // 4) el-select：wrapper 内已存在（避免重复插入）
+      const mount = getElSelectIconMountNodeByInput(input);
+      if (mount && mount.querySelector?.(':scope > .auto-fill-icon, .auto-fill-icon')) return true;
+    } catch (e) {
+      // ignore
+    }
 
     return false;
   }
@@ -1343,8 +1362,19 @@
   function isInFormContext(input) {
     // 只有“表单区域”才需要⚡：避免列表筛选/分页(例如 20条/页)也出现⚡
     // 以 form / el-form / el-form-item 作为表单上下文判断
+    //
+    // 新站点（/csp）部分页面表单并不在 <form> 内，且不一定使用 ElementPlus 的 el-form 组件，
+    // 但会存在 .el-form-item / .el-input 等结构，因此这里放宽：
+    // - 仍优先要求在明确表单容器内
+    // - 若在 ElementPlus 输入组件内，也视为“表单上下文”
     try {
-      return !!(input.closest?.('form') || input.closest?.('.el-form') || input.closest?.('.el-form-item'));
+      return !!(
+          input.closest?.('form') ||
+          input.closest?.('.el-form') ||
+          input.closest?.('.el-form-item') ||
+          input.closest?.('.el-input') ||
+          input.closest?.('.el-textarea')
+      );
     } catch (e) {
       return false;
     }
@@ -1381,20 +1411,180 @@
     // 绑定关系：后续变色/状态更新不依赖 DOM 邻接关系
     INPUT_ICON_MAP.set(input, icon);
 
-    // 设置样式
+    // 设置样式：
+    // 需求：⚡不要插到 input 外面（变成一个独立元素把布局顶开），而是作为“输入框最右侧”。
+    // 适配策略：
+    // - ElementUI/ElementPlus：把⚡作为 suffix（right addon）插入到 .el-input 结构内
+    // - textarea：通过 wrapper relative + icon absolute 贴到右侧内部
+    const isTextArea = (input.tagName || '').toLowerCase() === 'textarea';
+
+    // 通用 icon 样式（两种挂载方式会补充定位样式）
+    // 需求：尽量“窄”，并贴近输入框右侧
     icon.style.cssText = `
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
             color: ${CONFIG.iconColor};
             font-size: ${CONFIG.iconSize};
-            margin-left: ${CONFIG.iconMargin};
-            margin-right: -10px;
             border-radius: 3px;
             background-color: rgba(76, 175, 80, 0.1);
             transition: all 0.3s ease;
-            vertical-align: middle;
             user-select: none;
+            white-space: nowrap;
+            flex: 0 0 auto;
+            padding: 0;
+            width: 16px;
+            min-width: 16px;
+            height: 27px;
+            line-height: 27px;
+            margin-right: -4px;
+            margin-top: 0px;
+            text-align: center;
         `;
+
+    // 1) textarea：贴到 textarea 右侧内部（不改变原布局宽度）
+    if (isTextArea) {
+      try {
+        const wrap = input.parentElement;
+        if (wrap) {
+          const wrapStyle = window.getComputedStyle(wrap);
+          if (wrapStyle.position === 'static') wrap.style.position = 'relative';
+
+          // 给 textarea 预留右侧空间，避免文字被⚡遮住
+          const oldPaddingRight = parseFloat(window.getComputedStyle(input).paddingRight || '0') || 0;
+          if (oldPaddingRight < 26) input.style.paddingRight = `${Math.max(oldPaddingRight, 26)}px`;
+
+          icon.style.position = 'absolute';
+          icon.style.right = '4px';
+          icon.style.top = '6px';
+          icon.style.zIndex = '2';
+          icon.style.padding = '0';
+          icon.style.width = '16px';
+          icon.style.minWidth = '16px';
+          icon.style.height = '27px';
+          icon.style.lineHeight = '27px';
+          icon.style.marginRight = '-4px';
+          icon.style.marginTop = '0px';
+
+          wrap.appendChild(icon);
+        } else {
+          input.parentNode.insertBefore(icon, input.nextSibling);
+        }
+      } catch (e) {
+        input.parentNode.insertBefore(icon, input.nextSibling);
+      }
+    } else {
+      // 2) input：优先走 ElementUI/ElementPlus 的 suffix 结构
+      let mounted = false;
+
+      // ElementUI/ElementPlus el-input 结构：input.el-input__inner + span.el-input__suffix
+      try {
+        const elInputWrap = input.closest?.('.el-input');
+        if (elInputWrap) {
+          // 只影响当前容器，保证 suffix 与 input 同一行且不会换行
+          elInputWrap.style.display = 'flex';
+          elInputWrap.style.alignItems = 'center';
+          elInputWrap.style.flexWrap = 'nowrap';
+
+          // input 需要可收缩（否则 suffix 会被挤到下一行）
+          const inner = elInputWrap.querySelector?.('.el-input__inner');
+          if (inner) {
+            inner.style.flex = '1 1 auto';
+            inner.style.minWidth = '0';
+            // 预留右侧空间避免遮挡（suffix 方式一般不需要，但旧结构可能会叠加）
+            const pr = parseFloat(window.getComputedStyle(inner).paddingRight || '0') || 0;
+            if (pr < 28) inner.style.paddingRight = `${Math.max(pr, 28)}px`;
+          }
+
+          // suffix 容器：若没有则创建
+          let suffix = elInputWrap.querySelector('.el-input__suffix');
+          if (!suffix) {
+            suffix = document.createElement('span');
+            suffix.className = 'el-input__suffix';
+            elInputWrap.appendChild(suffix);
+          }
+
+          // suffix-inner：若没有则创建
+          let suffixInner = suffix.querySelector('.el-input__suffix-inner');
+          if (!suffixInner) {
+            suffixInner = document.createElement('span');
+            suffixInner.className = 'el-input__suffix-inner';
+            suffix.appendChild(suffixInner);
+          }
+
+          // icon 作为 suffix 的最右侧内容（紧贴右侧，避免“悬空”）
+          // 让 suffix 容器成为 flex，并清理可能的内边距/间距
+          try {
+            suffix.style.display = 'flex';
+            suffix.style.alignItems = 'center';
+            suffix.style.marginLeft = '0';
+            suffix.style.paddingLeft = '0';
+            suffix.style.paddingRight = '0';
+          } catch (e) {}
+
+          try {
+            suffixInner.style.display = 'flex';
+            suffixInner.style.alignItems = 'center';
+            suffixInner.style.gap = '0';
+            suffixInner.style.marginLeft = '0';
+            suffixInner.style.paddingLeft = '0';
+            suffixInner.style.paddingRight = '0';
+          } catch (e) {}
+
+          // 贴合到最右侧：取消多余 padding，保持一个字符宽度
+          icon.style.marginLeft = '0';
+          icon.style.marginRight = '-4px';
+          icon.style.marginTop = '0px';
+          icon.style.padding = '0';
+          icon.style.width = '16px';
+          icon.style.minWidth = '16px';
+          icon.style.height = '27px';
+          icon.style.lineHeight = '27px';
+
+          // suffix-inner 末尾追加，并让 suffix 右侧不留空
+          try { suffix.style.paddingRight = '0'; } catch (e) {}
+          try { suffixInner.style.paddingRight = '0'; } catch (e) {}
+
+          suffixInner.appendChild(icon);
+          mounted = true;
+        }
+      } catch (e) {}
+
+      if (!mounted) {
+        // fallback：如果不是 ElementUI/ElementPlus 结构，就还是插在 input 后面（尽量不破）
+        // 但用 absolute 贴到右侧内部，避免挤占布局
+        try {
+          const wrap = input.parentElement;
+          if (wrap) {
+            const wrapStyle = window.getComputedStyle(wrap);
+            if (wrapStyle.position === 'static') wrap.style.position = 'relative';
+
+            const oldPaddingRight = parseFloat(window.getComputedStyle(input).paddingRight || '0') || 0;
+            if (oldPaddingRight < 26) input.style.paddingRight = `${Math.max(oldPaddingRight, 26)}px`;
+
+            icon.style.position = 'absolute';
+            icon.style.right = '4px';
+            icon.style.top = '50%';
+            icon.style.transform = 'translateY(-50%)';
+            icon.style.zIndex = '2';
+            icon.style.padding = '0';
+            icon.style.width = '16px';
+            icon.style.minWidth = '16px';
+            icon.style.height = '27px';
+            icon.style.lineHeight = '27px';
+            icon.style.marginRight = '-4px';
+            icon.style.marginTop = '0px';
+
+            wrap.appendChild(icon);
+          } else {
+            input.parentNode.insertBefore(icon, input.nextSibling);
+          }
+        } catch (e) {
+          input.parentNode.insertBefore(icon, input.nextSibling);
+        }
+      }
+    }
 
     // 悬停效果
     icon.addEventListener('mouseenter', function() {
@@ -1466,50 +1656,6 @@
       const iconStateChosenAuto = icon.dataset.autoFillEverChosen === '1' && (!remembered || remembered === 'auto');
       fillInput(input, iconStateChosenAuto ? 'auto' : (remembered || 'auto'));
     });
-
-    // 添加到输入框后面
-    if (CONFIG.iconPosition === 'absolute') {
-      icon.style.position = 'absolute';
-      icon.style.marginLeft = '0';
-      input.parentNode.style.position = 'relative';
-      input.parentNode.appendChild(icon);
-    } else {
-      // ElementPlus el-select：优先插到可见 wrapper 内
-      if (isElementPlusSelectInput(input)) {
-        const mount = getElSelectIconMountNodeByInput(input);
-        if (mount) {
-          // 让⚡紧贴右侧，且不挡住原下拉箭头（箭头通常也是 suffix）
-          icon.style.marginLeft = '6px';
-          icon.style.marginRight = '0';
-          icon.style.flex = '0 0 auto';
-
-          // wrapper 通常是 flex，直接 append 在末尾即可
-          mount.appendChild(icon);
-        } else {
-          input.parentNode.insertBefore(icon, input.nextSibling);
-        }
-      } else {
-        // 普通 input：插在 input 后面
-        input.parentNode.insertBefore(icon, input.nextSibling);
-        
-        // 尝试移除元素间的空白文本节点
-        try {
-          const siblings = Array.from(input.parentNode.childNodes);
-          const inputIndex = siblings.indexOf(input);
-          if (inputIndex >= 0) {
-            // 查找输入框与⚡之间的文本节点
-            for (let i = inputIndex + 1; i < siblings.indexOf(icon); i++) {
-              const node = siblings[i];
-              if (node.nodeType === 3 && node.textContent.trim() === '') {
-                input.parentNode.removeChild(node);
-              }
-            }
-          }
-        } catch (e) {
-          // 忽略错误
-        }
-      }
-    }
 
     // 若该字段已保存过选择类型，则让 icon 变蓝色提示
     updateIconRememberedState(input);
