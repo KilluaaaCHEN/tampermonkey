@@ -1138,7 +1138,8 @@
     groupWrap.appendChild(col2);
     groupWrap.appendChild(col3);
 
-    const remembered = FIELD_TYPE_MEMORY.get(input) || 'auto';
+    // 打勾：优先用已持久化的类型（刷新后也能自动勾选），否则 fallback 当前内存/auto
+    const remembered = loadPersistedFieldType(input) || FIELD_TYPE_MEMORY.get(input) || 'auto';
 
     let colIdx = 0; // 0->col1, 1->col2, 2->col3
     const cols = [col1, col2, col3];
@@ -1257,8 +1258,8 @@
 
     const menu = createTypeMenu(icon, input);
 
-    // 刷新打勾状态
-    const remembered = FIELD_TYPE_MEMORY.get(input) || 'auto';
+    // 刷新打勾状态：优先用已持久化的类型
+    const remembered = loadPersistedFieldType(input) || FIELD_TYPE_MEMORY.get(input) || 'auto';
     menu.querySelectorAll('.auto-fill-type-item').forEach(item => {
       const key = item.dataset.typeKey;
       const check = item.querySelector('.auto-fill-type-item-check');
